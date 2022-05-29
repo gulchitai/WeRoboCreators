@@ -29,6 +29,7 @@ class AStar:
         self.other_agents = set()
         self.history = list()
         self.cntSkip = 0
+        self.cntRandom = 0
 
     def compute_shortest_path(self, start, goal):
         self.start = start
@@ -83,21 +84,35 @@ class Model:
             if positions_xy[k] == targets_xy[k]:  # don't waste time on the agents that have already reached their goals
                 actions.append(0)  # just add useless action to save the order and length of the actions
                 continue
-            #done1 = sum([positions_xy[ag] == targets_xy[ag] for ag in range(len(obs))])
+
+            done1 = sum([positions_xy[ag] == targets_xy[ag] for ag in range(len(obs))])
+            cnt = Counter(self.agents[k].history)
+
+            if (len(self.agents[k].history) > 0) and (cnt.most_common()[0][1] > 10): #если осталось меньше 10 роботов и они не могут разойтись, надо одному идти, а остальным остановиться на 5 ходов
+                if (len(obs) - done1 <=10):
+                    self.agents[k].history.clear()
+                    for ag in range(len(obs)): #обходим всех роботов
+                        if (positions_xy[ag] != targets_xy[ag]) and (ag != k): #робот еще не достиг цели и это не текущий робот
+                            self.agents[ag].cntSkip = 3
 
             if self.agents[k].cntSkip > 0: # пропускаем нужное число ходов
                 self.agents[k].cntSkip = self.agents[k].cntSkip - 1
                 actions.append(0)
                 continue
 
-            cnt = Counter(self.agents[k].history)
+            #if self.agents[k].cntRandom > 0:
+            #    self.agents[k].cntRandom = self.agents[k].cntRandom - 1
+            #    actions.append(np.random.randint(5))
+            #    continue
+
             if (len(self.agents[k].history) > 0) and (cnt.most_common()[0][1] > 10):
                 self.agents[k].history.clear()
                 # случайным образом выберем один из двух вариантов
                 # 1. Сделать случайный ход
-                # 2. Сделать пять пропусков хода подряд
+                # 2. Сделать 5 пропусков хода подряд
                 r = np.random.randint(2)
                 if r == 0:
+                    #self.agents[k].cntRandom = 5
                     actions.append(np.random.randint(5))
                 else:
                     self.agents[k].cntSkip = 5
@@ -112,7 +127,7 @@ class Model:
 
 def main():
     # Define random configuration
-    grid_config = GridConfig(num_agents=32,  # количество агентов на карте
+    grid_config = GridConfig(num_agents=64,  # количество агентов на карте
                              size=64,  # размеры карты
                              density=0.3,  # плотность препятствий
                              seed=7,  # сид генерации задания
